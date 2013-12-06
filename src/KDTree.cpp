@@ -9,66 +9,65 @@
 #include "KDTree.hpp"
 #include <Eigen/Dense>
 
-KDTree::KDTree(const unsigned n_Locations, const unsigned n_Dimension, double* locations) {
+KDTree::KDTree(const unsigned n_Locations, const unsigned n_Dimension, double* locations, const unsigned n_Properties, double* properties) {
         this->n_Locations       =       n_Locations;
         this->n_Dimension       =       n_Dimension;
+        this->n_Properties      =       n_Properties;
 
-        sorted_Locations        =       Eigen::MatrixXd(n_Locations, n_Dimension);
+        sorted_Contents         =       Eigen::MatrixXd(n_Locations, n_Dimension+n_Properties);
 
-        unsigned count          =       0;
+        unsigned count_Location =       0;
+        unsigned count_Property =       0;
+
         for (unsigned j=0; j<n_Locations; ++j) {
                 for (unsigned k=0; k<n_Dimension; ++k) {
-                        sorted_Locations(j,k)   =       locations[count];
-                        ++count;
+                        sorted_Contents(j,k)    =       locations[count_Location];
+                        ++count_Location;
+                }
+                for (unsigned k=n_Dimension; k<n_Dimension+n_Properties; ++k) {
+                        sorted_Contents(j,k)    =       properties[count_Property];
+                        ++count_Property;
                 }
         }
-//        std::cout << sorted_Locations << std::endl;
 }
 
 void KDTree::merge_Sorted_Lists(unsigned n_Left_Start, unsigned n_Left_Size, unsigned n_Right_Start, unsigned n_Right_Size, unsigned n_Index) {
-//        std::cout << "merge_Sorted_Lists" << std::endl;
-        
-        Eigen::MatrixXd temp_List(n_Left_Size+n_Right_Size, n_Dimension);
+
+        Eigen::MatrixXd temp_List(n_Left_Size+n_Right_Size, n_Dimension+n_Properties);
 
         unsigned j_Left =       n_Left_Start;
         unsigned j_Right=       n_Right_Start;
 
         unsigned j      =       0;
 
-//        std::cout << 1 << std::endl;
         while (j_Left < n_Left_Start + n_Left_Size && j_Right < n_Right_Start + n_Right_Size) {
-                if (sorted_Locations(j_Left, n_Index) < sorted_Locations(j_Right, n_Index)) {
-                        temp_List.row(j)=       sorted_Locations.row(j_Left);
+                if (sorted_Contents(j_Left, n_Index) < sorted_Contents(j_Right, n_Index)) {
+                        temp_List.row(j)=       sorted_Contents.row(j_Left);
                         ++j_Left;
                 }
                 else {
-                        temp_List.row(j)=       sorted_Locations.row(j_Right);
+                        temp_List.row(j)=       sorted_Contents.row(j_Right);
                         ++j_Right;
                 }
                 ++j;
         }
 
-//        std::cout << 1 << std::endl;
         while (j_Left < n_Left_Start + n_Left_Size) {
-                temp_List.row(j)        =       sorted_Locations.row(j_Left);
+                temp_List.row(j)        =       sorted_Contents.row(j_Left);
                 ++j_Left;
                 ++j;
         }
 
-//        std::cout << 1 << std::endl;
         while (j_Right < n_Right_Start + n_Right_Size) {
-                temp_List.row(j)        =       sorted_Locations.row(j_Right);
+                temp_List.row(j)        =       sorted_Contents.row(j_Right);
                 ++j_Right;
                 ++j;
         }
 
-//        std::cout << 1 << std::endl;
-        sorted_Locations.block(n_Left_Start, 0, n_Left_Size + n_Right_Size, n_Dimension)        =       temp_List;
-//        std::cout << "merge_Sorted_Lists" << std::endl;
+        sorted_Contents.block(n_Left_Start, 0, n_Left_Size + n_Right_Size, n_Dimension+n_Properties)        =       temp_List;
 }
 
 void KDTree::merge_Sort(unsigned n_Start, unsigned n_Size, unsigned n_Index) {
-//        std::cout << "merge_Sort" << std::endl;
         if (n_Size<=1) {
                 //      Do nothing
                 return;
@@ -84,7 +83,6 @@ void KDTree::merge_Sort(unsigned n_Start, unsigned n_Size, unsigned n_Index) {
 
                 merge_Sorted_Lists(n_Left_Start, n_Left_Size, n_Right_Start, n_Right_Size, n_Index);
         }
-//        std::cout << "merge_Sort" << std::endl;
 }
 
 void KDTree::sort_KDTree(unsigned n_Start, unsigned n_Size, unsigned n_Index) {
@@ -93,7 +91,6 @@ void KDTree::sort_KDTree(unsigned n_Start, unsigned n_Size, unsigned n_Index) {
                 return;
         }
         else {
-//                std::cout << n_Size << std::endl;
                 n_Index                 =       n_Index%n_Dimension;
                 merge_Sort(n_Start, n_Size, n_Index);
 
@@ -120,24 +117,26 @@ void KDTree::sort_KDTree() {
         }
 }
 
-void KDTree::get_Location(double* locations) {
-//        std::cout << sorted_Locations << std::endl;
-        unsigned count  =       0;
+void KDTree::get_Location_Properties(double* locations, double* properties) {
+        unsigned count_Location         =       0;
+        unsigned count_Property         =       0;
         for (unsigned j=0; j<n_Locations; ++j) {
                 for (unsigned k=0; k<n_Dimension; ++k) {
-                        locations[count] =       sorted_Locations(j,k);
-                        ++count;
+                        locations[count_Location]       =       sorted_Contents(j,k);
+                        ++count_Location;
+                }
+                for (unsigned k=n_Dimension; k<n_Dimension+n_Properties; ++k) {
+                        properties[count_Property]      =       sorted_Contents(j,k);
+                        ++count_Property;
                 }
         }
 }
 
-void KDTree::get_Location(const unsigned n_Index, double* location) {
-//        location        =       new double [n_Dimension];
+void KDTree::get_Location_Properties(const unsigned n_Index, double* location, double* properties) {
         for (unsigned k=0; k<n_Dimension; ++k) {
-                location[k]     =       sorted_Locations(n_Index,k);
+                location[k]     =       sorted_Contents(n_Index,k);
         }
-}
-
-void KDTree::get_Location(const unsigned n_Index, const unsigned n_Coordinate, double& location) {
-        location        =       sorted_Locations(n_Index, n_Coordinate);
+        for (unsigned k=0; k<n_Properties; ++k) {
+                properties[k]   =       sorted_Contents(n_Index,k+n_Dimension);
+        }
 }
